@@ -81,7 +81,6 @@ func (stg Postgres) GetUserList(offset, limit int, search string) (*blogpost.Get
 	username, 
 	password,
 	user_type,
-	author_id, 
 	created_at, 
 	updated_at, 
 	deleted_at 
@@ -161,4 +160,42 @@ func (stg Postgres) RemoveUser(id string) error {
 
 	return errors.New("user not found or already deleted")
 
+}
+
+// GetUserByUsername...
+func (stg Postgres) GetUserByUsername(username string) (*blogpost.User, error) {
+	res := &blogpost.User{}
+
+	var deletedAt *time.Time
+	var updatedAt *string
+
+	err := stg.db.QueryRow(`SELECT 
+	id,
+	username, 
+	password,
+	user_type, 
+	created_at, 
+	updated_at, 
+	deleted_at
+	FROM "user" WHERE username = $1`, username).Scan(
+		&res.Id,
+		&res.Username,
+		&res.Password,
+		&res.UserType,
+		&res.CreatedAt,
+		&updatedAt,
+		&deletedAt,
+	)
+	if err != nil {
+		return res, err
+	}
+
+	if updatedAt != nil {
+		res.UpdatedAt = *updatedAt
+	}
+
+	if deletedAt != nil {
+		return res, errors.New("user not found")
+	}
+	return res, err
 }

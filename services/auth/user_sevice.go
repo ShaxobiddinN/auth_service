@@ -2,8 +2,10 @@
 package auth
 
 import (
+	"blogpost/auth_service/config"
 	blogpost "blogpost/auth_service/protogen/blogpost"
 	"blogpost/auth_service/storage"
+	"blogpost/auth_service/util"
 	"context"
 	"fmt"
 	"log"
@@ -15,12 +17,14 @@ import (
 
 // AuthService...
 type authService struct {
+	cfg config.Config
 	stg storage.StorageI
 	blogpost.UnimplementedAuthServiceServer
 }
 
-func NewAuthService(stg storage.StorageI) *authService {
+func NewAuthService(cfg config.Config, stg storage.StorageI) *authService {
 	return &authService{
+		cfg: cfg,
 		stg: stg,
 	}
 }
@@ -36,9 +40,16 @@ func (s *authService) Ping(ctx context.Context, req *blogpost.Empty) (*blogpost.
 // CreateAuth...
 func (s *authService) CreateUser(ctx context.Context, req *blogpost.CreateUserRequest) (*blogpost.User, error) {
 	id := uuid.New()
-	//Todo - hash password
 
-	err := s.stg.AddUser(id.String(), req)
+	//Todo - hash password
+	hashedPassword, err := util.HashPassword(req.Password)
+	if err != nil {
+
+		return nil, status.Errorf(codes.Internal, "util.HashPassword: %s", err.Error())
+	}
+	req.Password = hashedPassword
+
+	err = s.stg.AddUser(id.String(), req)
 	if err != nil {
 
 		return nil, status.Errorf(codes.Internal, "s.stg.AddUser: %s", err.Error())
@@ -56,8 +67,14 @@ func (s *authService) CreateUser(ctx context.Context, req *blogpost.CreateUserRe
 // UpdateUser...
 func (s *authService) UpdateUser(ctx context.Context, req *blogpost.UpdateUserRequest) (*blogpost.User, error) {
 	//Todo - hash password
+	hashedPassword, err := util.HashPassword(req.Password)
+	if err != nil {
 
-	err := s.stg.UpdateUser(req)
+		return nil, status.Errorf(codes.Internal, "util.HashPassword: %s", err.Error())
+	}
+	req.Password = hashedPassword
+
+	err = s.stg.UpdateUser(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "s.stg.UpdateUser: %s", err.Error())
 
